@@ -1,0 +1,363 @@
+import { ChecklistItem, PracticeGroup, RecognitionClue, RoadmapPhase } from '../types';
+
+export const LEARNING_CHAINS = [
+  {
+    title: 'Array & Search Chain',
+    steps: ['Array', 'Linear Search', 'Sorting Basics', 'Binary Search', 'Two Pointers', 'Sliding Window'],
+    accent: 'sky',
+  },
+  {
+    title: 'Linked List Chain',
+    steps: ['Linked List', 'Traversal', 'Reversal', 'Fast & Slow Pointers'],
+    accent: 'indigo',
+  },
+  {
+    title: 'Tree Chain',
+    steps: ['Tree', 'Tree Traversal', 'DFS', 'BFS'],
+    accent: 'emerald',
+  },
+  {
+    title: 'Graph Chain',
+    steps: ['Graph', 'Graph Traversal', 'Shortest Path Algorithms'],
+    accent: 'amber',
+  },
+];
+
+export const DATA_STRUCTURE_EXAMPLES = [
+  {
+    group: 'Linear Data Structures',
+    badge: 'Sequential Order',
+    color: 'sky',
+    description: 'Elements are logically organized in a single sequential order, one after another.',
+    items: [
+      {
+        name: 'Array',
+        what: 'Elements stored in indexed positions.',
+        realWorld: 'Row of numbered movie theater seats — jump straight to seat #14 in O(1) time.',
+      },
+      {
+        name: 'String',
+        what: 'Immutable linear sequence of characters.',
+        realWorld: 'Text messages, URLs, search queries, and DNA sequences.',
+      },
+      {
+        name: 'Linked List',
+        what: 'Each node connects to the next node via a pointer.',
+        realWorld: 'Music playlist with Next/Previous song links or browser history chain.',
+      },
+      {
+        name: 'Stack (LIFO)',
+        what: 'Last In, First Out — add and remove from the top.',
+        realWorld: 'Ctrl+Z Undo history in VS Code or a stack of dinner plates.',
+      },
+      {
+        name: 'Queue (FIFO)',
+        what: 'First In, First Out — first person in line is served first.',
+        realWorld: 'Print job queue, food delivery order queue, or customer support tickets.',
+      },
+    ],
+  },
+  {
+    group: 'Associative Structures',
+    badge: 'Key / Fast Lookup',
+    color: 'amber',
+    description: 'Studied separately for instant key-based lookup and duplicate detection.',
+    items: [
+      {
+        name: 'Hash Map',
+        what: 'Key-value pairs with O(1) average lookup.',
+        realWorld: 'Phone contacts: look up "Mom" directly to get her number without scanning every name.',
+      },
+      {
+        name: 'Hash Set',
+        what: 'Stores unique values with O(1) membership checks.',
+        realWorld: 'Checking if a username is already taken during signup.',
+      },
+    ],
+  },
+  {
+    group: 'Non-Linear Data Structures',
+    badge: 'Hierarchical / Network',
+    color: 'emerald',
+    description: 'Elements connect through parent-child hierarchies or multi-way networks.',
+    items: [
+      {
+        name: 'Tree',
+        what: 'Hierarchical parent and child relationships.',
+        realWorld: 'Folders and subfolders on your computer or HTML DOM tree.',
+      },
+      {
+        name: 'Graph',
+        what: 'Nodes (vertices) connected by network edges.',
+        realWorld: 'Google Maps road intersections, LinkedIn connections, or flight routes.',
+      },
+    ],
+  },
+];
+
+export const CLASSIFICATION_CLARIFIER = [
+  { term: 'Linear data structure', classification: 'Type of data structure', note: 'Array, Linked List, Stack, Queue' },
+  { term: 'Non-linear data structure', classification: 'Type of data structure', note: 'Tree, Graph' },
+  { term: 'Dynamic array', classification: 'Resizable data structure', note: 'Python list (auto-grows in capacity)' },
+  { term: 'Linear Search', classification: 'Searching algorithm', note: 'Checks one element at a time' },
+  { term: 'Dynamic Programming', classification: 'Algorithmic technique', note: 'NOT a data structure — uses arrays/maps/trees' },
+  { term: 'Two Pointers', classification: 'Algorithmic technique', note: 'Pattern applied on arrays, strings, or lists' },
+];
+
+export const COMPLEXITY_GUIDE = [
+  {
+    notation: 'O(1)',
+    name: 'Constant Time',
+    speed: 'Instant',
+    color: 'emerald',
+    realExample: 'Opening a locker when you already know its exact number (arr[5]). Whether there are 10 lockers or 1,000,000, it takes 1 step.',
+    spaceExample: 'Using 2 pointer variables (left, right) regardless of list size.',
+  },
+  {
+    notation: 'O(log n)',
+    name: 'Logarithmic Time',
+    speed: 'Blazing Fast',
+    color: 'sky',
+    realExample: 'Finding a word in a sorted dictionary by opening the middle page and discarding half every time (Binary Search). 1,000,000 items take only ~20 steps!',
+    spaceExample: 'Recursive Binary Search call stack depth: O(log n) frames.',
+  },
+  {
+    notation: 'O(n)',
+    name: 'Linear Time',
+    speed: 'Fair',
+    color: 'indigo',
+    realExample: 'Checking every seat in a cinema row one by one to find your lost phone (Linear Search). Double the seats = double the time.',
+    spaceExample: 'Storing a frequency Hash Map of every character in a string.',
+  },
+  {
+    notation: 'O(n log n)',
+    name: 'Linearithmic Time',
+    speed: 'Efficient Sort',
+    color: 'amber',
+    realExample: 'Sorting a deck of playing cards by splitting it in half repeatedly and merging sorted halves (Merge Sort / Python Timsort).',
+    spaceExample: 'Merge Sort temporary merge arrays take O(n) extra space.',
+  },
+  {
+    notation: 'O(n²)',
+    name: 'Quadratic Time',
+    speed: 'Slow at Scale',
+    color: 'orange',
+    realExample: 'Every person in a room shaking hands with every other person (nested loop / Bubble Sort). 1,000 people = 1,000,000 checks.',
+    spaceExample: 'Building an N × N 2D DP grid or adjacency matrix.',
+  },
+  {
+    notation: 'O(2ⁿ)',
+    name: 'Exponential Time',
+    speed: 'Explosive',
+    color: 'rose',
+    realExample: 'Trying every possible combination of pizza toppings (include or exclude each topping). Adding 1 topping doubles the work!',
+    spaceExample: 'Storing all 2ⁿ generated subsets in memory.',
+  },
+];
+
+export const ROADMAP_PHASES: RoadmapPhase[] = [
+  {
+    phase: 1,
+    title: 'Phase 1 — Foundations',
+    level: 'Beginner',
+    subtitle: 'Master complexity, Python built-ins (list, str, dict, set), searching, and basic sorting.',
+    pythonNote: 'In Python, you will mainly use list, str, dict, and set. Implement basic sorting a few times to understand mechanics — do not spend weeks grinding Bubble Sort.',
+    topics: [
+      { id: 't-1', order: 1, title: 'Time and Space Complexity', category: 'Foundation', phase: 1, difficulty: 'Beginner', concepts: ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)', 'O(n²)', 'O(2ⁿ)'] },
+      { id: 't-2', order: 2, title: 'Big O Notation', category: 'Foundation', phase: 1, difficulty: 'Beginner', concepts: ['Worst vs average case', 'Dropping constants', 'Space trade-offs'] },
+      { id: 't-3', order: 3, title: 'Arrays', category: 'Data Structure', phase: 1, difficulty: 'Beginner', concepts: ['Indexing', 'Traversal', 'Insertion', 'Deletion', 'Searching', 'Updating'] },
+      { id: 't-4', order: 4, title: 'Strings', category: 'Linear Sequence', phase: 1, difficulty: 'Beginner', concepts: ['Indexing', 'Slicing', 'Comparison', 'Immutability', 'Character frequency'] },
+      { id: 't-5', order: 5, title: 'Linear Search', category: 'Algorithm', phase: 1, difficulty: 'Beginner', concepts: ['Sequential scan', 'O(n) worst-case', 'Works on unsorted data'] },
+      { id: 't-6', order: 6, title: 'Bubble Sort', category: 'Algorithm', phase: 1, difficulty: 'Beginner', concepts: ['Adjacent swapping', 'Early-exit flag', 'O(n²)'] },
+      { id: 't-7', order: 7, title: 'Selection Sort', category: 'Algorithm', phase: 1, difficulty: 'Beginner', concepts: ['Finding minimum element', 'In-place swap', 'O(n²)'] },
+      { id: 't-8', order: 8, title: 'Insertion Sort', category: 'Algorithm', phase: 1, difficulty: 'Beginner', concepts: ['Inserting into sorted prefix', 'Fast on nearly sorted arrays'] },
+      { id: 't-9', order: 9, title: 'Binary Search', category: 'Algorithm', phase: 1, difficulty: 'Beginner', concepts: ['Sorted array prerequisite', 'Halving search space', 'O(log n)'] },
+      { id: 't-10', order: 10, title: 'Hash Map', category: 'Data Structure', phase: 1, difficulty: 'Beginner', concepts: ['Key-value pairs', 'O(1) lookup', 'Frequency counting'] },
+      { id: 't-11', order: 11, title: 'Hash Set', category: 'Data Structure', phase: 1, difficulty: 'Beginner', concepts: ['Unique values', 'Membership check', 'Duplicate detection'] },
+      { id: 't-12', order: 12, title: 'Hashing', category: 'Technique', phase: 1, difficulty: 'Beginner', concepts: ['Hash functions', 'Collision handling', 'Complement lookup'] },
+    ],
+  },
+  {
+    phase: 2,
+    title: 'Phase 2 — Array & String Problem-Solving Patterns',
+    level: 'Beginner → Intermediate',
+    subtitle: 'Where strong LeetCode problem-solving skills begin: collapsing O(n²) loops into O(n).',
+    topics: [
+      { id: 't-13', order: 13, title: 'Two Pointers', category: 'Technique', phase: 2, difficulty: 'Intermediate', concepts: ['Opposite direction', 'Read/Write in-place', 'Separate sequences', 'Sorting + 2P'] },
+      { id: 't-14', order: 14, title: 'Sliding Window', category: 'Technique', phase: 2, difficulty: 'Intermediate', concepts: ['Fixed-size window', 'Variable-size shrink/expand', 'Contiguous subarray/substring'] },
+      { id: 't-15', order: 15, title: 'Prefix Sum', category: 'Technique', phase: 2, difficulty: 'Intermediate', concepts: ['Cumulative sums', 'O(1) range-sum queries', 'Prefix + Hash Map'] },
+      { id: 't-16', order: 16, title: "Kadane's Algorithm", category: 'Algorithm', phase: 2, difficulty: 'Intermediate', concepts: ['Maximum contiguous subarray sum', 'Reset negative running sum'] },
+      { id: 't-17', order: 17, title: 'Advanced Binary Search', category: 'Algorithm Variations', phase: 2, difficulty: 'Intermediate', concepts: ['First & last occurrence', 'Lower/upper bound', 'Rotated sorted array', 'Binary search on answer'] },
+      { id: 't-18', order: 18, title: 'Matrix / 2D Array', category: 'Data Structure', phase: 2, difficulty: 'Intermediate', concepts: ['Row/col indexing', 'In-place rotation', 'Transpose'] },
+      { id: 't-19', order: 19, title: 'Matrix Traversal', category: 'Algorithm', phase: 2, difficulty: 'Intermediate', concepts: ['Spiral traversal', 'Diagonal scan', '4-directional neighbors'] },
+    ],
+  },
+  {
+    phase: 3,
+    title: 'Phase 3 — Intermediate Linear Data Structures',
+    level: 'Intermediate',
+    subtitle: 'Master pointer manipulation, LIFO/FIFO mechanics, and monotonic structures before Trees & Graphs.',
+    pythonNote: 'Learning Stack and Queue before Trees and Graphs pays off immediately because DFS uses a Stack and BFS uses a Queue.',
+    topics: [
+      { id: 't-20', order: 20, title: 'Singly Linked List', category: 'Data Structure', phase: 3, difficulty: 'Intermediate', concepts: ['Node/next pointers', 'Dummy head', 'Merging lists'] },
+      { id: 't-21', order: 21, title: 'Doubly Linked List', category: 'Data Structure', phase: 3, difficulty: 'Intermediate', concepts: ['Prev & next pointers', 'O(1) node removal', 'LRU Cache backbone'] },
+      { id: 't-22', order: 22, title: 'Linked List Reversal', category: 'Algorithm', phase: 3, difficulty: 'Intermediate', concepts: ['Iterative prev/curr/next', 'Reverse sublist', 'Reverse in K-group'] },
+      { id: 't-23', order: 23, title: 'Fast and Slow Pointers', category: 'Technique', phase: 3, difficulty: 'Intermediate', concepts: ['Middle of linked list', 'Kth from end', 'Palindrome linked list'] },
+      { id: 't-24', order: 24, title: "Floyd's Cycle Detection", category: 'Algorithm', phase: 3, difficulty: 'Intermediate', concepts: ['Tortoise & Hare', 'Detect cycle', 'Find cycle entry node'] },
+      { id: 't-25', order: 25, title: 'Stack', category: 'Data Structure', phase: 3, difficulty: 'Intermediate', concepts: ['Valid parentheses', 'Expression evaluation', 'Min stack'] },
+      { id: 't-26', order: 26, title: 'Queue', category: 'Data Structure', phase: 3, difficulty: 'Intermediate', concepts: ['Sequential processing', 'Level-order traversal', 'collections.deque'] },
+      { id: 't-27', order: 27, title: 'Deque', category: 'Data Structure', phase: 3, difficulty: 'Intermediate', concepts: ['O(1) both-ends ops', 'Sliding window maximum'] },
+      { id: 't-28', order: 28, title: 'Monotonic Stack', category: 'Technique', phase: 3, difficulty: 'Intermediate', concepts: ['Next greater element', 'Daily temperatures', 'Largest rectangle in histogram'] },
+      { id: 't-29', order: 29, title: 'Monotonic Queue', category: 'Technique', phase: 3, difficulty: 'Intermediate', concepts: ['Maintain min/max in O(1)', 'Sliding window max'] },
+    ],
+  },
+  {
+    phase: 4,
+    title: 'Phase 4 — Recursion & Algorithm Design',
+    level: 'Intermediate',
+    subtitle: 'Build recursive intuition: base cases, call stacks, divide & conquer, and backtracking.',
+    pythonNote: 'Recursion unlocks Trees, DFS, Backtracking, and Dynamic Programming.',
+    topics: [
+      { id: 't-30', order: 30, title: 'Recursion', category: 'Technique', phase: 4, difficulty: 'Intermediate', concepts: ['Base & recursive case', 'Call stack', 'Recursion tree', 'Return values'] },
+      { id: 't-31', order: 31, title: 'Divide and Conquer', category: 'Technique', phase: 4, difficulty: 'Intermediate', concepts: ['Split subproblems', 'Conquer recursively', 'Combine results'] },
+      { id: 't-32', order: 32, title: 'Merge Sort', category: 'Algorithm', phase: 4, difficulty: 'Intermediate', concepts: ['Stable O(n log n)', 'Split & merge', 'Inversion counting'] },
+      { id: 't-33', order: 33, title: 'Quick Sort', category: 'Algorithm', phase: 4, difficulty: 'Intermediate', concepts: ['Pivot partition', 'In-place O(n log n) avg', 'Quickselect'] },
+      { id: 't-34', order: 34, title: 'Backtracking', category: 'Technique', phase: 4, difficulty: 'Intermediate', concepts: ['Choose → Explore → Undo', 'Subsets', 'Permutations', 'Combinations'] },
+    ],
+  },
+  {
+    phase: 5,
+    title: 'Phase 5 — Non-Linear Data Structures',
+    level: 'Intermediate → Advanced',
+    subtitle: 'Hierarchical trees, priority queues, prefix tries, and graph traversal foundations.',
+    pythonNote: 'You can skip AVL and Red-Black Trees initially for general coding interview prep. In Python, use heapq for heaps.',
+    topics: [
+      { id: 't-35', order: 35, title: 'Binary Tree', category: 'Data Structure', phase: 5, difficulty: 'Intermediate', concepts: ['Root, leaf, height, depth', 'Subtree recursion', 'Diameter & LCA'] },
+      { id: 't-36', order: 36, title: 'Binary Search Tree', category: 'Data Structure', phase: 5, difficulty: 'Intermediate', concepts: ['Search, insert, delete', 'BST validation', 'Inorder sorted property'] },
+      { id: 't-37', order: 37, title: 'Inorder Traversal', category: 'Algorithm', phase: 5, difficulty: 'Intermediate', concepts: ['Left → Root → Right', 'Sorted output in BST'] },
+      { id: 't-38', order: 38, title: 'Preorder Traversal', category: 'Algorithm', phase: 5, difficulty: 'Intermediate', concepts: ['Root → Left → Right', 'Tree serialization'] },
+      { id: 't-39', order: 39, title: 'Postorder Traversal', category: 'Algorithm', phase: 5, difficulty: 'Intermediate', concepts: ['Left → Right → Root', 'Bottom-up tree DP / deletion'] },
+      { id: 't-40', order: 40, title: 'Depth-First Search (DFS)', category: 'Algorithm', phase: 5, difficulty: 'Intermediate', concepts: ['Path exploration', 'Stack / recursion', 'Connected components'] },
+      { id: 't-41', order: 41, title: 'Breadth-First Search (BFS)', category: 'Algorithm', phase: 5, difficulty: 'Intermediate', concepts: ['Level-order traversal', 'Queue', 'Shortest path in unweighted graph'] },
+      { id: 't-42', order: 42, title: 'Heap', category: 'Data Structure', phase: 5, difficulty: 'Intermediate', concepts: ['Min Heap & Max Heap', 'Heapify O(n)', 'Top K elements'] },
+      { id: 't-43', order: 43, title: 'Priority Queue', category: 'Abstract Data Type', phase: 5, difficulty: 'Intermediate', concepts: ['Highest-priority dequeue', 'Task scheduling', 'K-way merge'] },
+      { id: 't-44', order: 44, title: 'Heap Sort', category: 'Algorithm', phase: 5, difficulty: 'Intermediate', concepts: ['In-place O(n log n)', 'Extract max repeatedly'] },
+      { id: 't-45', order: 45, title: 'Trie', category: 'Data Structure', phase: 5, difficulty: 'Advanced', concepts: ['Prefix tree', 'Word insertion & search', 'Autocomplete'] },
+      { id: 't-46', order: 46, title: 'Graph', category: 'Data Structure', phase: 5, difficulty: 'Advanced', concepts: ['Directed/undirected', 'Weighted/unweighted', 'Adjacency list & matrix'] },
+      { id: 't-47', order: 47, title: 'Graph DFS and BFS', category: 'Algorithm', phase: 5, difficulty: 'Advanced', concepts: ['Visited set', 'Cycle detection', 'Grid islands & shortest hops'] },
+    ],
+  },
+  {
+    phase: 6,
+    title: 'Phase 6 — Advanced Algorithms & Techniques',
+    level: 'Advanced',
+    subtitle: 'Greedy, intervals, shortest paths, MSTs, Union-Find, Dynamic Programming, and Bit Manipulation.',
+    topics: [
+      { id: 't-48', order: 48, title: 'Greedy', category: 'Technique', phase: 6, difficulty: 'Advanced', concepts: ['Locally optimal choice', 'Exchange argument', 'Jump Game / Activity Selection'] },
+      { id: 't-49', order: 49, title: 'Merge Intervals', category: 'Pattern', phase: 6, difficulty: 'Advanced', concepts: ['Sort by start time', 'Overlap detection', 'Meeting rooms'] },
+      { id: 't-50', order: 50, title: 'Topological Sort', category: 'Algorithm', phase: 6, difficulty: 'Advanced', concepts: ["Kahn's BFS (indegree)", 'DFS postorder', 'Course schedule DAG'] },
+      { id: 't-51', order: 51, title: 'Union Find / Disjoint Set', category: 'Data Structure', phase: 6, difficulty: 'Advanced', concepts: ['Path compression', 'Union by rank/size', 'Dynamic connectivity'] },
+      { id: 't-52', order: 52, title: "Dijkstra's Algorithm", category: 'Algorithm', phase: 6, difficulty: 'Advanced', concepts: ['Non-negative edge weights', 'Min-heap relaxation', 'O((V+E) log V)'] },
+      { id: 't-53', order: 53, title: 'Bellman-Ford Algorithm', category: 'Algorithm', phase: 6, difficulty: 'Advanced', concepts: ['Handles negative weights', 'Negative cycle detection', 'O(VE)'] },
+      { id: 't-54', order: 54, title: "Prim's Algorithm", category: 'Algorithm', phase: 6, difficulty: 'Advanced', concepts: ['Minimum Spanning Tree', 'Grow tree via min-heap'] },
+      { id: 't-55', order: 55, title: "Kruskal's Algorithm", category: 'Algorithm', phase: 6, difficulty: 'Advanced', concepts: ['Sort edges by weight', 'MST via Union-Find'] },
+      { id: 't-56', order: 56, title: 'Dynamic Programming', category: 'Technique', phase: 6, difficulty: 'Advanced', concepts: ['Memoization (Top-Down)', 'Tabulation (Bottom-Up)', '1D/2D DP', 'Knapsack', 'LCS/LIS', 'Grid & Tree DP'] },
+      { id: 't-57', order: 57, title: 'Bit Manipulation', category: 'Technique', phase: 6, difficulty: 'Advanced', concepts: ['AND/OR/XOR', 'Bitmasks', 'Shifts', 'n & (n - 1)'] },
+    ],
+  },
+];
+
+export const DP_LEARNING_ORDER = [
+  '1. Recursion',
+  '2. Overlapping Subproblems & Optimal Substructure',
+  '3. Memoization — Top Down',
+  '4. Tabulation — Bottom Up',
+  '5. 1D Dynamic Programming',
+  '6. 2D Dynamic Programming',
+  '7. 0/1 Knapsack',
+  '8. Unbounded Knapsack',
+  '9. Longest Common Subsequence (LCS)',
+  '10. Longest Increasing Subsequence (LIS)',
+  '11. Grid DP',
+  '12. DP on Trees & Intervals',
+];
+
+export const IMMEDIATE_CHECKLIST: ChecklistItem[] = [
+  { id: 'chk-1', order: 1, title: 'Time and Space Complexity', subtitle: 'Understand why O(n) is better than O(n²)' },
+  { id: 'chk-2', order: 2, title: 'Array', subtitle: 'Indexing, traversal, and updating' },
+  { id: 'chk-3', order: 3, title: 'String', subtitle: 'Indexing, slicing, and comparison' },
+  { id: 'chk-4', order: 4, title: 'Linear Search', subtitle: 'Sequential element searching' },
+  { id: 'chk-5', order: 5, title: 'Bubble Sort', subtitle: 'Basic sorting and swapping' },
+  { id: 'chk-6', order: 6, title: 'Selection Sort', subtitle: 'Finding minimum elements' },
+  { id: 'chk-7', order: 7, title: 'Insertion Sort', subtitle: 'Inserting into a sorted portion' },
+  { id: 'chk-8', order: 8, title: 'Binary Search', subtitle: 'Eliminating unnecessary search space' },
+  { id: 'chk-9', order: 9, title: 'Hash Map and Hash Set', subtitle: 'Efficient lookup and duplicate detection' },
+  { id: 'chk-10', order: 10, title: 'Two Pointers', subtitle: 'Learn all four major variations' },
+  { id: 'chk-11', order: 11, title: 'Sliding Window', subtitle: 'Fixed and variable-size windows' },
+  { id: 'chk-12', order: 12, title: 'Prefix Sum', subtitle: 'Cumulative sums and range queries' },
+  { id: 'chk-13', order: 13, title: "Kadane's Algorithm", subtitle: 'Maximum subarray sum' },
+];
+
+export const PATTERN_RECOGNITION: RecognitionClue[] = [
+  { clue: 'Finding pairs in a sorted array', technique: 'Two Pointers', category: 'Array' },
+  { clue: 'Comparing elements from both ends', technique: 'Two Pointers', category: 'Array' },
+  { clue: 'Removing elements in-place', technique: 'Read/Write Pointers', category: 'Array' },
+  { clue: 'Longest or shortest contiguous substring', technique: 'Sliding Window', category: 'Array' },
+  { clue: 'Multiple range-sum queries', technique: 'Prefix Sum', category: 'Array' },
+  { clue: 'Maximum contiguous subarray sum', technique: "Kadane's Algorithm", category: 'Array' },
+  { clue: 'Finding an element in sorted data', technique: 'Binary Search', category: 'Array' },
+  { clue: 'Min/max feasible answer with a monotonic condition', technique: 'Binary Search on Answer', category: 'Array' },
+  { clue: 'Finding duplicates or frequencies', technique: 'Hashing (Hash Map / Set)', category: 'Array' },
+  { clue: 'Nested brackets or matching delimiters', technique: 'Stack', category: 'Linear' },
+  { clue: 'Next greater or smaller element', technique: 'Monotonic Stack', category: 'Linear' },
+  { clue: 'Linked List cycle or middle node', technique: 'Fast and Slow Pointers', category: 'Linear' },
+  { clue: 'All possible combinations or permutations', technique: 'Backtracking', category: 'Optimization' },
+  { clue: 'Level-wise traversal', technique: 'BFS', category: 'Trees & Graphs' },
+  { clue: 'Exploring paths and branches', technique: 'DFS', category: 'Trees & Graphs' },
+  { clue: 'K largest or smallest elements', technique: 'Heap / Priority Queue', category: 'Trees & Graphs' },
+  { clue: 'Prefix-based word searching', technique: 'Trie', category: 'Trees & Graphs' },
+  { clue: 'Shortest path in an unweighted graph', technique: 'BFS', category: 'Trees & Graphs' },
+  { clue: 'Shortest path with non-negative edge weights', technique: "Dijkstra's Algorithm", category: 'Trees & Graphs' },
+  { clue: 'Connectivity between groups', technique: 'Union Find (DSU)', category: 'Trees & Graphs' },
+  { clue: 'Making safe locally optimal choices', technique: 'Greedy', category: 'Optimization' },
+  { clue: 'Repeated overlapping subproblems', technique: 'Dynamic Programming', category: 'Optimization' },
+];
+
+export const PRACTICE_PLAN: PracticeGroup[] = [
+  { id: 'pg-1', name: 'Arrays, Strings & Hashing', target: 15, focus: 'Frequency maps, anagrams, grouping, in-place ops' },
+  { id: 'pg-2', name: 'Two Pointers', target: 12, focus: 'Two Sum II, 3Sum, Container With Most Water, Trapping Rain' },
+  { id: 'pg-3', name: 'Sliding Window & Prefix Sum', target: 12, focus: 'Longest Substring Without Repeating, Subarray Sum Equals K' },
+  { id: 'pg-4', name: 'Sorting & Binary Search', target: 10, focus: 'Rotated array, Koko Eating Bananas, First/Last Position' },
+  { id: 'pg-5', name: 'Linked List', target: 10, focus: 'Reverse, Cycle II, Merge K Lists, LRU Cache' },
+  { id: 'pg-6', name: 'Stack & Queue', target: 10, focus: 'Valid Parentheses, Daily Temperatures, Histogram, Sliding Max' },
+  { id: 'pg-7', name: 'Recursion & Backtracking', target: 10, focus: 'Subsets, Permutations, Combination Sum, Word Search' },
+  { id: 'pg-8', name: 'Trees & BST', target: 15, focus: 'Traversals, Diameter, LCA, Validate BST, Serialize' },
+  { id: 'pg-9', name: 'Heap & Trie', target: 8, focus: 'Top K Frequent, Find Median, Implement Trie' },
+  { id: 'pg-10', name: 'Graphs', target: 15, focus: 'Islands, Course Schedule, Network Delay Time, Union Find' },
+  { id: 'pg-11', name: 'Greedy & Intervals', target: 8, focus: 'Merge Intervals, Non-overlapping Intervals, Jump Game' },
+  { id: 'pg-12', name: 'Dynamic Programming', target: 20, focus: 'House Robber, Coin Change, Knapsack, LCS, LIS, Grid DP' },
+  { id: 'pg-13', name: 'Bit Manipulation', target: 5, focus: 'Single Number, Counting Bits, Missing Number' },
+];
+
+export const MASTERY_STEPS = [
+  { step: 1, title: 'Understand the problem', desc: 'What exact problem does this technique solve?' },
+  { step: 2, title: 'Understand brute force', desc: 'Why is the straightforward solution too slow?' },
+  { step: 3, title: 'Visualize the technique', desc: 'Watch how each operation transforms the data.' },
+  { step: 4, title: 'Understand the reasoning', desc: 'Why is the optimization provably correct?' },
+  { step: 5, title: 'Implement from scratch', desc: 'Write clean Python code without copying.' },
+  { step: 6, title: 'Analyze complexity', desc: 'Derive exact time and space Big-O bounds.' },
+  { step: 7, title: 'Practice variations', desc: 'Solve Easy, Medium, and eventually Hard twists.' },
+  { step: 8, title: 'Test pattern recognition', desc: 'Solve unfamiliar problems with topic tags hidden.' },
+];
+
+export const PERSONAL_START_PATH = [
+  'Time and Space Complexity',
+  'Array & String Fundamentals',
+  'Linear Search',
+  'Basic Sorting Algorithms',
+  'Binary Search',
+  'Hashing (dict & set)',
+  'Two Pointers',
+  'Sliding Window',
+  'Prefix Sum',
+];
