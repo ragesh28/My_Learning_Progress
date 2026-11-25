@@ -6,6 +6,8 @@ import {
   ChevronDown,
   ChevronRight,
   Compass,
+  Globe,
+  Lock,
   Minus,
   Plus,
   RotateCcw,
@@ -22,10 +24,12 @@ import {
   PRACTICE_PLAN,
   ROADMAP_PHASES,
 } from '../data/dsaRoadmap';
-import { TopicNote, UserProgressData } from '../types';
+import { NoteVisibility, TopicNote, UserProgressData } from '../types';
 
 interface LearnDsaProps {
   progress: UserProgressData;
+  isOwner: boolean;
+  onRequestLogin: (reason: string) => void;
   onToggleTopic: (topicId: string) => void;
   onToggleChecklist: (chkId: string) => void;
   onResetChecklist: () => void;
@@ -37,6 +41,8 @@ type LearnSubTab = 'roadmap' | 'checklist' | 'patterns' | 'practice';
 
 export const LearnDsa: React.FC<LearnDsaProps> = ({
   progress,
+  isOwner,
+  onRequestLogin,
   onToggleTopic,
   onToggleChecklist,
   onResetChecklist,
@@ -44,10 +50,17 @@ export const LearnDsa: React.FC<LearnDsaProps> = ({
   onSaveNote,
 }) => {
   const [subTab, setSubTab] = useState<LearnSubTab>('roadmap');
-  const [openPhases, setOpenPhases] = useState<Record<number, boolean>>({ 1: true, 2: true, 3: false, 4: false, 5: false, 6: false });
+  const [openPhases, setOpenPhases] = useState<Record<number, boolean>>({
+    1: true,
+    2: true,
+    3: false,
+    4: false,
+    5: false,
+    6: false,
+  });
   const [patternQuery, setPatternQuery] = useState('');
   const [patternCat, setPatternCat] = useState<string>('All');
-  const [editingNoteTopic, setEditingNoteTopic] = useState<{ id: string; title: string } | null>(null);
+  const [activeNoteTopic, setActiveNoteTopic] = useState<{ id: string; title: string } | null>(null);
   const [noteDraft, setNoteDraft] = useState('');
 
   const totalTopics = useMemo(
@@ -71,21 +84,38 @@ export const LearnDsa: React.FC<LearnDsaProps> = ({
     });
   }, [patternCat, patternQuery]);
 
-  const openNoteEditor = (id: string, title: string) => {
-    setEditingNoteTopic({ id, title });
-    setNoteDraft(progress.topicNotes[id]?.content || '');
+  const getVisibleNote = (topicId: string): TopicNote | undefined => {
+    const note = progress.topicNotes[topicId];
+    if (!note) return undefined;
+    if (!isOwner && note.visibility === 'private') return undefined;
+    return note;
   };
 
-  const handleSaveInlineNote = () => {
-    if (!editingNoteTopic) return;
+  const openNoteModal = (id: string, title: string) => {
+    const existing = getVisibleNote(id);
+    if (!isOwner && !existing) {
+      onRequestLogin(`Enter owner password to add a note for ${title}.`);
+      return;
+    }
+    setActiveNoteTopic({ id, title });
+    setNoteDraft(existing?.content || '');
+  };
+
+  const handleSaveInlineNote = (visibility: NoteVisibility) => {
+    if (!activeNoteTopic) return;
+    if (!isOwner) {
+      onRequestLogin('Enter owner password to save notes.');
+      return;
+    }
     onSaveNote({
-      topicId: editingNoteTopic.id,
-      topicName: editingNoteTopic.title,
+      topicId: activeNoteTopic.id,
+      topicName: activeNoteTopic.title,
       content: noteDraft.trim(),
-      links: progress.topicNotes[editingNoteTopic.id]?.links || [],
+      links: progress.topicNotes[activeNoteTopic.id]?.links || [],
+      visibility,
       updatedAt: new Date().toISOString(),
     });
-    setEditingNoteTopic(null);
+    setActiveNoteTopic(null);
   };
 
   return (
@@ -207,11 +237,9 @@ export const LearnDsa: React.FC<LearnDsaProps> = ({
                       <p className="text-xs text-slate-400 mt-0.5">{phase.subtitle}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs font-semibold text-emerald-400">
-                      {phaseDone}/{phase.topics.length} done
-                    </span>
-                  </div>
+                  <span className="font-mono text-xs font-semibold text-emerald-400">
+                    {phaseDone}/{phase.topics.length} done
+                  </span>
                 </button>
 
                 {isOpen && (
@@ -225,7 +253,7 @@ export const LearnDsa: React.FC<LearnDsaProps> = ({
                     <div className="grid gap-2.5">
                       {phase.topics.map((topic) => {
                         const checked = progress.completedTopics.includes(topic.id);
-                        const hasNote = Boolean(progress.topicNotes[topic.id]?.content);
+                        const visibleNote = getVisibleNote(topic.id);
                         return (
                           <div
                             key={topic.id}
@@ -262,6 +290,22 @@ export const LearnDsa: React.FC<LearnDsaProps> = ({
                                   <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-indigo-300">
                                     {topic.category}
                                   </span>
+                                  {visibleNote && (
+                                    <span
+                                      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-mono border ${
+                                        visibleNote.visibility === 'private'
+                                          ? 'border-amber-500/40 bg-amber-500/15 text-amber-300'
+                                          : 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                                      }`}
+                                    >
+                                      {visibleNote.visibility === 'private' ? (
+                                        <Lock className="h-2.5 w-2.5" />
+                                      ) : (
+                                        <Globe className="h-2.5 w-2.5" />
+                                      )}
+                                      {visibleNote.visibility}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                                   {topic.concepts.map((c) => (
@@ -277,15 +321,19 @@ export const LearnDsa: React.FC<LearnDsaProps> = ({
                             </div>
 
                             <button
-                              onClick={() => openNoteEditor(topic.id, topic.title)}
+                              onClick={() => openNoteModal(topic.id, topic.title)}
                               className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition cursor-pointer ${
-                                hasNote
-                                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                                visibleNote
+                                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
                                   : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-white'
                               }`}
                             >
-                              <StickyNote className="h-3.5 w-3.5" />
-                              {hasNote ? 'Edit Note' : 'Add Note'}
+                              {!isOwner && !visibleNote ? (
+                                <Lock className="h-3.5 w-3.5 text-amber-400" />
+                              ) : (
+                                <StickyNote className="h-3.5 w-3.5" />
+                              )}
+                              {visibleNote ? (isOwner ? 'Edit Note' : 'View Note') : 'Add Note'}
                             </button>
                           </div>
                         );
@@ -539,35 +587,73 @@ export const LearnDsa: React.FC<LearnDsaProps> = ({
         </div>
       )}
 
-      {/* Inline Note Modal */}
-      {editingNoteTopic && (
+      {/* Inline Note Modal (View-only if not logged in, Save as Public / Private if logged in) */}
+      {activeNoteTopic && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-[#0F1420] p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-white">Notes — {editingNoteTopic.title}</h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Write what you understood, edge cases, or Python templates. Saved locally immediately & synced when you click Save to GitHub.
-            </p>
-            <textarea
-              value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              rows={7}
-              placeholder="e.g., Remember: in binary search, use mid = left + (right - left) // 2 and check loop invariant..."
-              className="mt-4 w-full rounded-xl border border-slate-700 bg-[#090B10] p-3.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none font-mono"
-            />
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={() => setEditingNoteTopic(null)}
-                className="rounded-lg border border-slate-700 px-4 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveInlineNote}
-                className="rounded-lg bg-sky-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-sky-400 cursor-pointer"
-              >
-                Save Note
-              </button>
-            </div>
+            <h3 className="text-lg font-bold text-white">Notes — {activeNoteTopic.title}</h3>
+            {!isOwner ? (
+              <>
+                <div className="mt-4 rounded-xl border border-slate-800 bg-[#090B10] p-4 text-sm text-slate-200 whitespace-pre-wrap font-mono">
+                  {noteDraft || 'No note text.'}
+                </div>
+                <div className="mt-4 flex justify-between items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const topicTitle = activeNoteTopic.title;
+                      setActiveNoteTopic(null);
+                      onRequestLogin(`Enter owner password to edit notes for ${topicTitle}.`);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3.5 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/20 cursor-pointer"
+                  >
+                    <Lock className="h-3.5 w-3.5" />
+                    Login to Edit
+                  </button>
+                  <button
+                    onClick={() => setActiveNoteTopic(null)}
+                    className="rounded-lg border border-slate-700 px-4 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-slate-400 mt-1">
+                  Choose <strong className="text-emerald-300">Save as Public</strong> (visible to everyone) or{' '}
+                  <strong className="text-amber-300">Save as Private</strong> (encrypted, visible only after login).
+                </p>
+                <textarea
+                  value={noteDraft}
+                  onChange={(e) => setNoteDraft(e.target.value)}
+                  rows={7}
+                  placeholder="Write what you understood, edge cases, or Python templates..."
+                  className="mt-4 w-full rounded-xl border border-slate-700 bg-[#090B10] p-3.5 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none font-mono"
+                />
+                <div className="mt-4 flex flex-wrap justify-end gap-2">
+                  <button
+                    onClick={() => setActiveNoteTopic(null)}
+                    className="rounded-lg border border-slate-700 px-4 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleSaveInlineNote('public')}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-400 cursor-pointer"
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    Save as Public
+                  </button>
+                  <button
+                    onClick={() => handleSaveInlineNote('private')}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/50 bg-amber-500/15 px-4 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/25 cursor-pointer"
+                  >
+                    <Lock className="h-3.5 w-3.5" />
+                    Save as Private
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

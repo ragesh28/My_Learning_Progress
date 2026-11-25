@@ -1,9 +1,23 @@
 import React, { useMemo, useState } from 'react';
-import { BookMarked, ExternalLink, FileText, Plus, Search, Sparkles, Tag, Trash2, Edit3 } from 'lucide-react';
-import { AiEntry } from '../types';
+import {
+  BookMarked,
+  Edit3,
+  ExternalLink,
+  FileText,
+  Globe,
+  Lock,
+  Plus,
+  Search,
+  Sparkles,
+  Tag,
+  Trash2,
+} from 'lucide-react';
+import { AiEntry, NoteVisibility } from '../types';
 
 interface AiHubProps {
   entries: AiEntry[];
+  isOwner: boolean;
+  onRequestLogin: (reason: string) => void;
   onAddOrUpdate: (entry: AiEntry) => void;
   onDelete: (id: string) => void;
 }
@@ -20,10 +34,17 @@ const CATEGORIES: AiEntry['category'][] = [
 
 const STATUSES: AiEntry['status'][] = ['To Read', 'Reading', 'Mastered'];
 
-export const AiHub: React.FC<AiHubProps> = ({ entries, onAddOrUpdate, onDelete }) => {
+export const AiHub: React.FC<AiHubProps> = ({
+  entries,
+  isOwner,
+  onRequestLogin,
+  onAddOrUpdate,
+  onDelete,
+}) => {
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState<'All' | AiEntry['category']>('All');
   const [statusFilter, setStatusFilter] = useState<'All' | AiEntry['status']>('All');
+  const [visFilter, setVisFilter] = useState<'All' | NoteVisibility>('All');
   const [showForm, setShowForm] = useState(false);
 
   // Form fields
@@ -34,6 +55,11 @@ export const AiHub: React.FC<AiHubProps> = ({ entries, onAddOrUpdate, onDelete }
   const [url, setUrl] = useState('');
   const [summary, setSummary] = useState('');
   const [tagsRaw, setTagsRaw] = useState('');
+
+  const visibleEntries = useMemo(
+    () => entries.filter((e) => isOwner || e.visibility !== 'private'),
+    [entries, isOwner]
+  );
 
   const resetForm = () => {
     setEditingId(null);
@@ -46,7 +72,20 @@ export const AiHub: React.FC<AiHubProps> = ({ entries, onAddOrUpdate, onDelete }
     setShowForm(false);
   };
 
+  const handleOpenNewForm = () => {
+    if (!isOwner) {
+      onRequestLogin('Enter owner password to add an AI note or research paper.');
+      return;
+    }
+    if (showForm) resetForm();
+    else setShowForm(true);
+  };
+
   const handleEdit = (entry: AiEntry) => {
+    if (!isOwner) {
+      onRequestLogin('Enter owner password to edit AI notes.');
+      return;
+    }
     setEditingId(entry.id);
     setTitle(entry.title);
     setCategory(entry.category);
@@ -57,8 +96,19 @@ export const AiHub: React.FC<AiHubProps> = ({ entries, onAddOrUpdate, onDelete }
     setShowForm(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleDeleteEntry = (id: string) => {
+    if (!isOwner) {
+      onRequestLogin('Enter owner password to delete AI notes.');
+      return;
+    }
+    onDelete(id);
+  };
+
+  const handleSaveEntry = (visibility: NoteVisibility) => {
+    if (!isOwner) {
+      onRequestLogin('Enter owner password to save AI notes.');
+      return;
+    }
     if (!title.trim()) return;
     const now = new Date().toISOString();
     const existing = editingId ? entries.find((item) => item.id === editingId) : undefined;
@@ -67,6 +117,7 @@ export const AiHub: React.FC<AiHubProps> = ({ entries, onAddOrUpdate, onDelete }
       title: title.trim(),
       category,
       status,
+      visibility,
       url: url.trim() || undefined,
       summary: summary.trim(),
       tags: tagsRaw
@@ -82,17 +133,18 @@ export const AiHub: React.FC<AiHubProps> = ({ entries, onAddOrUpdate, onDelete }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return entries.filter((item) => {
+    return visibleEntries.filter((item) => {
       const catOk = catFilter === 'All' || item.category === catFilter;
       const statusOk = statusFilter === 'All' || item.status === statusFilter;
+      const visOk = !isOwner || visFilter === 'All' || item.visibility === visFilter;
       const queryOk =
         !q ||
         item.title.toLowerCase().includes(q) ||
         item.summary.toLowerCase().includes(q) ||
         item.tags.some((t) => t.toLowerCase().includes(q));
-      return catOk && statusOk && queryOk;
+      return catOk && statusOk && visOk && queryOk;
     });
-  }, [entries, search, catFilter, statusFilter]);
+  }, [visibleEntries, search, catFilter, statusFilter, visFilter, isOwner]);
 
   return (
     <div className="space-y-6 pb-16">
@@ -101,32 +153,26 @@ export const AiHub: React.FC<AiHubProps> = ({ entries, onAddOrUpdate, onDelete }
         <div>
           <div className="inline-flex items-center gap-2 text-xs font-mono text-indigo-300 mb-1">
             <Sparkles className="h-4 w-4" />
-            PERSONAL AI KNOWLEDGE BASE
+            AI KNOWLEDGE BASE
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">AI Notes & Research Papers</h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-            Manually capture AI papers, arXiv links, LLM architectures, agent patterns, and personal takeaways. Click <strong className="text-sky-300">Save to GitHub</strong> in the top bar anytime to sync to your private repo.
+            Public AI notes and papers are readable by everyone. Log in as owner to view private notes and add new entries as <strong className="text-emerald-300">Public</strong> or <strong className="text-amber-300">Private</strong>.
           </p>
         </div>
 
         <button
-          onClick={() => {
-            if (showForm) resetForm();
-            else setShowForm(true);
-          }}
+          onClick={handleOpenNewForm}
           className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-400 transition cursor-pointer"
         >
-          <Plus className="h-4 w-4" />
-          {showForm ? 'Close Form' : 'Add AI Note / Paper'}
+          {isOwner ? <Plus className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+          {showForm ? 'Close Form' : isOwner ? 'Add AI Note / Paper' : 'Login to Add Note'}
         </button>
       </section>
 
-      {/* Add / Edit Form */}
-      {showForm && (
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-2xl border border-indigo-500/35 bg-[#0E121B] p-6 space-y-4 shadow-xl"
-        >
+      {/* Add / Edit Form (Owner Only) */}
+      {showForm && isOwner && (
+        <div className="rounded-2xl border border-indigo-500/35 bg-[#0E121B] p-6 space-y-4 shadow-xl">
           <h2 className="text-base font-bold text-white">
             {editingId ? 'Edit AI Entry' : 'New AI Note / Paper'}
           </h2>
@@ -200,7 +246,8 @@ export const AiHub: React.FC<AiHubProps> = ({ entries, onAddOrUpdate, onDelete }
             </div>
           </div>
 
-          <div className="flex justify-end gap-2">
+          {/* 2 Explicit Save Buttons: Save as Public vs Save as Private */}
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={resetForm}
@@ -209,13 +256,25 @@ export const AiHub: React.FC<AiHubProps> = ({ entries, onAddOrUpdate, onDelete }
               Cancel
             </button>
             <button
-              type="submit"
-              className="rounded-xl bg-indigo-500 px-5 py-2 text-xs font-semibold text-white hover:bg-indigo-400 cursor-pointer"
+              type="button"
+              disabled={!title.trim()}
+              onClick={() => handleSaveEntry('public')}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-40 cursor-pointer"
             >
-              {editingId ? 'Update Entry' : 'Save Entry'}
+              <Globe className="h-3.5 w-3.5" />
+              Save as Public
+            </button>
+            <button
+              type="button"
+              disabled={!title.trim()}
+              onClick={() => handleSaveEntry('private')}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/50 bg-amber-500/15 px-4 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/25 disabled:opacity-40 cursor-pointer"
+            >
+              <Lock className="h-3.5 w-3.5" />
+              Save as Private
             </button>
           </div>
-        </form>
+        </div>
       )}
 
       {/* Search & Filter Row */}
@@ -249,15 +308,30 @@ export const AiHub: React.FC<AiHubProps> = ({ entries, onAddOrUpdate, onDelete }
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
+        {isOwner && (
+          <select
+            value={visFilter}
+            onChange={(e) => setVisFilter(e.target.value as 'All' | NoteVisibility)}
+            className="rounded-xl border border-slate-700 bg-[#0E121B] px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none"
+          >
+            <option value="All">Public + Private</option>
+            <option value="public">Public Only</option>
+            <option value="private">Private Only</option>
+          </select>
+        )}
       </div>
 
       {/* Entries Grid */}
       {filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-800 bg-[#0E121B]/60 p-12 text-center">
           <BookMarked className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-slate-200">No AI notes or papers yet</h3>
+          <h3 className="text-base font-semibold text-slate-200">
+            {isOwner ? 'No AI notes or papers yet' : 'No public AI notes published yet'}
+          </h3>
           <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-            Click &ldquo;Add AI Note / Paper&rdquo; above to start building your personal AI research library with paper links, tags, and summaries.
+            {isOwner
+              ? 'Click "Add AI Note / Paper" above and choose Save as Public or Save as Private.'
+              : 'Log in as owner to view private AI notes or add new entries.'}
           </p>
         </div>
       ) : (
@@ -284,23 +358,39 @@ export const AiHub: React.FC<AiHubProps> = ({ entries, onAddOrUpdate, onDelete }
                     >
                       {entry.status}
                     </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleEdit(entry)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
-                      title="Edit"
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-mono border ${
+                        entry.visibility === 'private'
+                          ? 'border-amber-500/40 bg-amber-500/15 text-amber-300'
+                          : 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                      }`}
                     >
-                      <Edit3 className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onDelete(entry.id)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 cursor-pointer"
-                      title="Delete"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                      {entry.visibility === 'private' ? (
+                        <Lock className="h-2.5 w-2.5" />
+                      ) : (
+                        <Globe className="h-2.5 w-2.5" />
+                      )}
+                      {entry.visibility === 'private' ? 'Private' : 'Public'}
+                    </span>
                   </div>
+                  {isOwner && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleEdit(entry)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
+                        title="Edit"
+                      >
+                        <Edit3 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEntry(entry.id)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 cursor-pointer"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <h3 className="mt-3 text-base font-bold text-white flex items-center gap-2">

@@ -27,7 +27,20 @@ jobs:
           cache: "npm"
       - name: Install dependencies
         run: npm ci
+      - name: Hash Owner Password Secret
+        id: hash_pw
+        env:
+          OWNER_PASSWORD: ${{ secrets.OWNER_PASSWORD }}
+        run: |
+          if [ -n "$OWNER_PASSWORD" ]; then
+            HASH=$(node -e "const c=require('crypto'); process.stdout.write(c.createHash('sha256').update(process.env.OWNER_PASSWORD).digest('hex'));")
+            echo "hash=$HASH" >> "$GITHUB_OUTPUT"
+          else
+            echo "hash=" >> "$GITHUB_OUTPUT"
+          fi
       - name: Build
+        env:
+          VITE_OWNER_PASSWORD_HASH: ${{ steps.hash_pw.outputs.hash }}
         run: npm run build
       - name: Setup Pages
         uses: actions/configure-pages@v5

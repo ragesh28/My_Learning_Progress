@@ -1,5 +1,7 @@
 export type NavTab = 'home' | 'learn' | 'deep' | 'ai';
 
+export type NoteVisibility = 'public' | 'private';
+
 export type TopicCategory =
   | 'Foundation'
   | 'Data Structure'
@@ -77,6 +79,7 @@ export interface TopicNote {
   topicName: string;
   content: string;
   links: { title: string; url: string }[];
+  visibility: NoteVisibility;
   updatedAt: string;
 }
 
@@ -85,11 +88,34 @@ export interface AiEntry {
   title: string;
   category: 'Paper' | 'LLMs' | 'Agents' | 'RAG' | 'ML Foundations' | 'Tool / Repo' | 'Note';
   status: 'To Read' | 'Reading' | 'Mastered';
+  visibility: NoteVisibility;
   url?: string;
   summary: string;
   tags: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface EncryptedPayload {
+  iv: string;
+  salt: string;
+  ciphertext: string;
+}
+
+export interface PrivateBundle {
+  topicNotes: Record<string, TopicNote>;
+  aiEntries: AiEntry[];
+}
+
+export interface PublishedProgressFile {
+  version: number;
+  updatedAt: string | null;
+  completedTopics: string[];
+  completedChecklist: string[];
+  practiceSolved: Record<string, number>;
+  publicTopicNotes: Record<string, TopicNote>;
+  publicAiEntries: AiEntry[];
+  encryptedPrivate?: EncryptedPayload | null;
 }
 
 export interface UserProgressData {
@@ -100,6 +126,7 @@ export interface UserProgressData {
   practiceSolved: Record<string, number>;
   topicNotes: Record<string, TopicNote>;
   aiEntries: AiEntry[];
+  encryptedPrivate?: EncryptedPayload | null;
 }
 
 export interface GitHubSyncConfig {

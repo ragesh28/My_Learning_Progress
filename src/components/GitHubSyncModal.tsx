@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { CloudDownload, CloudUpload, Download, ExternalLink, Github, Upload, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  CloudDownload,
+  CloudUpload,
+  Download,
+  ExternalLink,
+  Github,
+  ShieldCheck,
+  Upload,
+  X,
+} from 'lucide-react';
 import { GitHubSyncConfig, UserProgressData } from '../types';
 import { pullProgressFromGitHub, pushProgressToGitHub, saveGitHubConfig } from '../utils/storage';
 
@@ -7,6 +18,7 @@ interface GitHubSyncModalProps {
   open: boolean;
   config: GitHubSyncConfig;
   progress: UserProgressData;
+  ownerPassword: string | null;
   onClose: () => void;
   onConfigChange: (cfg: GitHubSyncConfig) => void;
   onImportData: (data: UserProgressData) => void;
@@ -17,6 +29,7 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({
   open,
   config,
   progress,
+  ownerPassword,
   onClose,
   onConfigChange,
   onImportData,
@@ -39,7 +52,7 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({
     setStatusMsg(null);
     try {
       persistCfg(localCfg);
-      const res = await pushProgressToGitHub(localCfg, progress);
+      const res = await pushProgressToGitHub(localCfg, progress, ownerPassword);
       onSyncSuccess();
       setStatusMsg({ type: 'ok', text: res.message, url: res.commitUrl });
     } catch (err) {
@@ -54,9 +67,9 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({
     setStatusMsg(null);
     try {
       persistCfg(localCfg);
-      const data = await pullProgressFromGitHub(localCfg);
+      const data = await pullProgressFromGitHub(localCfg, ownerPassword);
       onImportData(data);
-      setStatusMsg({ type: 'ok', text: 'Pulled latest notes & progress from GitHub!' });
+      setStatusMsg({ type: 'ok', text: 'Pulled latest public & private notes from GitHub!' });
     } catch (err) {
       setStatusMsg({ type: 'err', text: err instanceof Error ? err.message : 'Failed to pull from GitHub.' });
     } finally {
@@ -99,15 +112,22 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({
               <Github className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Save Progress & Notes to GitHub</h2>
+              <h2 className="text-lg font-bold text-white">Save Notes & Progress to GitHub</h2>
               <p className="text-xs text-slate-400">
-                Commits <code className="text-sky-300">data/user-notes.json</code> to your private repo.
+                Commits <code className="text-sky-300">{localCfg.filePath}</code> to your repository.
               </p>
             </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer">
             <X className="h-5 w-5" />
           </button>
+        </div>
+
+        <div className="rounded-xl border border-emerald-500/25 bg-emerald-950/15 p-3 text-xs text-emerald-200/90 flex items-start gap-2">
+          <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+          <span>
+            <strong>Public notes</strong> are saved visibly so all visitors can read them. <strong>Private notes</strong> are AES-256 encrypted with your password before saving to GitHub.
+          </span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 text-xs">
@@ -129,7 +149,7 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({
           </div>
           <div className="sm:col-span-2">
             <label className="block text-slate-400 mb-1">
-              GitHub Personal Access Token (stored only in your browser&apos;s localStorage)
+              GitHub Personal Access Token (stored only in your browser)
             </label>
             <input
               type="password"
@@ -139,7 +159,7 @@ export const GitHubSyncModal: React.FC<GitHubSyncModalProps> = ({
               className="w-full rounded-lg border border-slate-700 bg-[#090B10] px-3 py-2 text-white font-mono"
             />
             <p className="mt-1 text-[11px] text-slate-500">
-              Create a Fine-Grained PAT scoped ONLY to <code>{localCfg.repo}</code> with <strong>Contents: Read and write</strong>.
+              Fine-Grained PAT scoped ONLY to <code>{localCfg.repo}</code> with <strong>Contents: Read and write</strong>.
             </p>
           </div>
         </div>

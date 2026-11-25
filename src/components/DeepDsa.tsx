@@ -4,7 +4,9 @@ import {
   ChevronRight,
   ExternalLink,
   Filter,
+  Globe,
   Link as LinkIcon,
+  Lock,
   Network,
   PlayCircle,
   Plus,
@@ -13,12 +15,15 @@ import {
   Trash2,
 } from 'lucide-react';
 import { ALGORITHMS_TREE, DATA_STRUCTURES_TREE } from '../data/deepDsaTrees';
-import { Difficulty, TopicNote, TreeNodeData, UserProgressData } from '../types';
+import { Difficulty, NoteVisibility, TopicNote, TreeNodeData, UserProgressData } from '../types';
 import { OsintTreeCanvas } from './OsintTreeCanvas';
 
 interface DeepDsaProps {
   progress: UserProgressData;
+  isOwner: boolean;
+  onRequestLogin: (reason: string) => void;
   onSaveNote: (note: TopicNote) => void;
+  onDeleteNote: (topicId: string) => void;
 }
 
 function collectAllIds(node: TreeNodeData): string[] {
@@ -79,7 +84,13 @@ function findMatchingNodesAndAncestors(
   return { matchedIds, ancestorIds };
 }
 
-export const DeepDsa: React.FC<DeepDsaProps> = ({ progress, onSaveNote }) => {
+export const DeepDsa: React.FC<DeepDsaProps> = ({
+  progress,
+  isOwner,
+  onRequestLogin,
+  onSaveNote,
+  onDeleteNote,
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [treeScope, setTreeScope] = useState<'both' | 'ds' | 'alg'>('both');
   const [difficultyFilter, setDifficultyFilter] = useState<'All' | Difficulty>('All');
@@ -96,31 +107,41 @@ export const DeepDsa: React.FC<DeepDsaProps> = ({ progress, onSaveNote }) => {
     ALGORITHMS_TREE.children?.[0]?.children?.[1] || ALGORITHMS_TREE
   );
 
-  // Note editor state for currently selected node
-  const currentSavedNote = progress.topicNotes[selectedNode.id];
-  const [noteText, setNoteText] = useState(currentSavedNote?.content || '');
+  // Visible notes respect public/private visibility
+  const visibleNotes = useMemo(() => {
+    const out: Record<string, TopicNote> = {};
+    for (const [k, v] of Object.entries(progress.topicNotes)) {
+      if (isOwner || v.visibility !== 'private') {
+        out[k] = v;
+      }
+    }
+    return out;
+  }, [progress.topicNotes, isOwner]);
+
+  const currentVisibleNote = visibleNotes[selectedNode.id];
+  const [noteText, setNoteText] = useState(currentVisibleNote?.content || '');
   const [noteLinks, setNoteLinks] = useState<{ title: string; url: string }[]>(
-    currentSavedNote?.links || []
+    currentVisibleNote?.links || []
   );
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
-  const [justSaved, setJustSaved] = useState(false);
+  const [savedNotice, setSavedNotice] = useState<string | null>(null);
 
   const handleSelectNode = (node: TreeNodeData) => {
     setSelectedNode(node);
-    const saved = progress.topicNotes[node.id];
+    const saved = visibleNotes[node.id];
     setNoteText(saved?.content || '');
     setNoteLinks(saved?.links || []);
-    setJustSaved(false);
+    setSavedNotice(null);
   };
 
   const notedIds = useMemo(() => {
     const set = new Set<string>();
-    for (const [k, v] of Object.entries(progress.topicNotes)) {
+    for (const [k, v] of Object.entries(visibleNotes)) {
       if (v.content.trim() || v.links.length > 0) set.add(k);
     }
     return set;
-  }, [progress.topicNotes]);
+  }, [visibleNotes]);
 
   const dsSearch = useMemo(
     () => findMatchingNodesAndAncestors(DATA_STRUCTURES_TREE, searchQuery, difficultyFilter, onlyWithNotes, notedIds),
@@ -152,6 +173,10 @@ export const DeepDsa: React.FC<DeepDsaProps> = ({ progress, onSaveNote }) => {
   };
 
   const handleAddLink = () => {
+    if (!isOwner) {
+      onRequestLogin('Enter owner password to attach links to topic notes.');
+      return;
+    }
     if (!newLinkUrl.trim()) return;
     const title = newLinkTitle.trim() || newLinkUrl.trim();
     setNoteLinks((prev) => [...prev, { title, url: newLinkUrl.trim() }]);
@@ -159,16 +184,33 @@ export const DeepDsa: React.FC<DeepDsaProps> = ({ progress, onSaveNote }) => {
     setNewLinkUrl('');
   };
 
-  const handleSaveCurrentNote = () => {
+  const handleSaveWithVisibility = (visibility: NoteVisibility) => {
+    if (!isOwner) {
+      onRequestLogin('Enter owner password to add or edit notes.');
+      return;
+    }
     onSaveNote({
       topicId: selectedNode.id,
       topicName: selectedNode.name,
       content: noteText.trim(),
       links: noteLinks,
+      visibility,
       updatedAt: new Date().toISOString(),
     });
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 1800);
+    setSavedNotice(visibility === 'public' ? 'Saved as Public ✓' : 'Saved as Private ✓');
+    setTimeout(() => setSavedNotice(null), 2200);
+  };
+
+  const handleRemoveNote = () => {
+    if (!isOwner) {
+      onRequestLogin('Enter owner password to delete notes.');
+      return;
+    }
+    onDeleteNote(selectedNode.id);
+    setNoteText('');
+    setNoteLinks([]);
+    setSavedNotice('Note deleted');
+    setTimeout(() => setSavedNotice(null), 1800);
   };
 
   const totalMatches = dsSearch.matchedIds.size + algSearch.matchedIds.size;
@@ -185,15 +227,15 @@ export const DeepDsa: React.FC<DeepDsaProps> = ({ progress, onSaveNote }) => {
             </div>
             <h1 className="text-2xl font-bold text-white">Deep DSA Explorer</h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Click any node to expand/collapse branches, view compatible Data Structures, open its free animation site, and save personal notes.
+              Click any node to expand/collapse branches, view compatible Data Structures, open its free animation site, and read or add notes.
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
             <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-sky-400" /> Collapsed (click to expand)
+              <span className="h-2.5 w-2.5 rounded-full bg-sky-400" /> Collapsed
             </span>
             <span className="inline-flex items-center gap-1.5 ml-3">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" /> Has your note
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" /> Has note
             </span>
           </div>
         </div>
@@ -250,7 +292,7 @@ export const DeepDsa: React.FC<DeepDsaProps> = ({ progress, onSaveNote }) => {
               }`}
             >
               <StickyNote className="h-3.5 w-3.5" />
-              My Notes ({notedIds.size})
+              Notes ({notedIds.size})
             </button>
           </div>
         </div>
@@ -269,12 +311,10 @@ export const DeepDsa: React.FC<DeepDsaProps> = ({ progress, onSaveNote }) => {
           {(treeScope === 'both' || treeScope === 'ds') && (
             <div className="space-y-2.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-base font-bold text-sky-300 flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-sky-400" />
-                    Tree 1 — Data Structures (Linear · Associative · Non-Linear)
-                  </h2>
-                </div>
+                <h2 className="text-base font-bold text-sky-300 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-sky-400" />
+                  Tree 1 — Data Structures (Linear · Associative · Non-Linear)
+                </h2>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setDsExpanded(new Set(collectAllIds(DATA_STRUCTURES_TREE)))}
@@ -308,12 +348,10 @@ export const DeepDsa: React.FC<DeepDsaProps> = ({ progress, onSaveNote }) => {
           {(treeScope === 'both' || treeScope === 'alg') && (
             <div className="space-y-2.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-base font-bold text-indigo-300 flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-indigo-400" />
-                    Tree 2 — Algorithm Techniques → Sub-Techniques & Real Algorithms
-                  </h2>
-                </div>
+                <h2 className="text-base font-bold text-indigo-300 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-indigo-400" />
+                  Tree 2 — Algorithm Techniques → Sub-Techniques & Real Algorithms
+                </h2>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setAlgExpanded(new Set(collectAllIds(ALGORITHMS_TREE)))}
@@ -354,6 +392,22 @@ export const DeepDsa: React.FC<DeepDsaProps> = ({ progress, onSaveNote }) => {
               {selectedNode.difficulty && (
                 <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-amber-300">
                   {selectedNode.difficulty}
+                </span>
+              )}
+              {currentVisibleNote && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-mono border ${
+                    currentVisibleNote.visibility === 'private'
+                      ? 'border-amber-500/40 bg-amber-500/15 text-amber-300'
+                      : 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                  }`}
+                >
+                  {currentVisibleNote.visibility === 'private' ? (
+                    <Lock className="h-2.5 w-2.5" />
+                  ) : (
+                    <Globe className="h-2.5 w-2.5" />
+                  )}
+                  {currentVisibleNote.visibility === 'private' ? 'Private Note' : 'Public Note'}
                 </span>
               )}
             </div>
@@ -439,80 +493,144 @@ export const DeepDsa: React.FC<DeepDsaProps> = ({ progress, onSaveNote }) => {
             </a>
           )}
 
-          {/* Personal Notes Editor ("Add Note") */}
+          {/* Notes Section: Public readable by all, Editing requires Owner Login */}
           <div className="border-t border-slate-800 pt-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold text-white flex items-center gap-1.5">
                 <StickyNote className="h-4 w-4 text-amber-400" />
-                My Understanding & Notes
+                Topic Notes
               </p>
-              {justSaved && (
-                <span className="text-[11px] font-mono text-emerald-400">Saved ✓</span>
+              {savedNotice && (
+                <span className="text-[11px] font-mono text-emerald-400">{savedNotice}</span>
               )}
             </div>
 
-            <textarea
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              rows={5}
-              placeholder={`Write what you understood about ${selectedNode.name}, key patterns, or Python snippets...`}
-              className="w-full rounded-xl border border-slate-700 bg-[#090B10] p-3 text-xs text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none font-mono"
-            />
+            {!isOwner ? (
+              <div className="space-y-3">
+                {currentVisibleNote && (currentVisibleNote.content || currentVisibleNote.links.length > 0) ? (
+                  <div className="rounded-xl border border-slate-800 bg-[#090B10] p-3.5 space-y-2.5">
+                    {currentVisibleNote.content && (
+                      <p className="text-xs text-slate-200 whitespace-pre-wrap font-mono leading-relaxed">
+                        {currentVisibleNote.content}
+                      </p>
+                    )}
+                    {currentVisibleNote.links.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        {currentVisibleNote.links.map((lnk, idx) => (
+                          <a
+                            key={`${lnk.url}-${idx}`}
+                            href={lnk.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-xs text-sky-300 hover:underline truncate"
+                          >
+                            <LinkIcon className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{lnk.title}</span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 italic">No public note added for this topic yet.</p>
+                )}
 
-            {/* Custom links attached to this topic */}
-            <div className="space-y-2">
-              {noteLinks.map((lnk, idx) => (
-                <div
-                  key={`${lnk.url}-${idx}`}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-[#090B10] px-2.5 py-1.5 text-xs"
-                >
-                  <a
-                    href={lnk.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-sky-300 hover:underline truncate"
-                  >
-                    <LinkIcon className="h-3 w-3 shrink-0" />
-                    <span className="truncate">{lnk.title}</span>
-                  </a>
-                  <button
-                    onClick={() => setNoteLinks((prev) => prev.filter((_, i) => i !== idx))}
-                    className="text-slate-500 hover:text-rose-400 cursor-pointer"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
-
-              <div className="grid grid-cols-5 gap-1.5">
-                <input
-                  value={newLinkTitle}
-                  onChange={(e) => setNewLinkTitle(e.target.value)}
-                  placeholder="Link title"
-                  className="col-span-2 rounded-lg border border-slate-700 bg-[#090B10] px-2.5 py-1.5 text-[11px] text-white placeholder:text-slate-500 focus:border-sky-500 focus:outline-none"
-                />
-                <input
-                  value={newLinkUrl}
-                  onChange={(e) => setNewLinkUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="col-span-2 rounded-lg border border-slate-700 bg-[#090B10] px-2.5 py-1.5 text-[11px] text-white placeholder:text-slate-500 focus:border-sky-500 focus:outline-none"
-                />
                 <button
-                  onClick={handleAddLink}
-                  className="col-span-1 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 flex items-center justify-center cursor-pointer"
-                  title="Attach link"
+                  onClick={() =>
+                    onRequestLogin(`Enter owner password to add or edit notes for ${selectedNode.name}.`)
+                  }
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 py-2.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/20 transition cursor-pointer"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Lock className="h-3.5 w-3.5" />
+                  Login to Add / Edit Note
                 </button>
               </div>
-            </div>
+            ) : (
+              <>
+                <textarea
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  rows={5}
+                  placeholder={`Write what you understood about ${selectedNode.name}, edge cases, or Python snippets...`}
+                  className="w-full rounded-xl border border-slate-700 bg-[#090B10] p-3 text-xs text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none font-mono"
+                />
 
-            <button
-              onClick={handleSaveCurrentNote}
-              className="w-full rounded-xl bg-sky-500 py-2 text-xs font-semibold text-slate-950 hover:bg-sky-400 transition cursor-pointer"
-            >
-              Save Topic Note
-            </button>
+                {/* Custom links attached to this topic */}
+                <div className="space-y-2">
+                  {noteLinks.map((lnk, idx) => (
+                    <div
+                      key={`${lnk.url}-${idx}`}
+                      className="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-[#090B10] px-2.5 py-1.5 text-xs"
+                    >
+                      <a
+                        href={lnk.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sky-300 hover:underline truncate"
+                      >
+                        <LinkIcon className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{lnk.title}</span>
+                      </a>
+                      <button
+                        onClick={() => setNoteLinks((prev) => prev.filter((_, i) => i !== idx))}
+                        className="text-slate-500 hover:text-rose-400 cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  <div className="grid grid-cols-5 gap-1.5">
+                    <input
+                      value={newLinkTitle}
+                      onChange={(e) => setNewLinkTitle(e.target.value)}
+                      placeholder="Link title"
+                      className="col-span-2 rounded-lg border border-slate-700 bg-[#090B10] px-2.5 py-1.5 text-[11px] text-white placeholder:text-slate-500 focus:border-sky-500 focus:outline-none"
+                    />
+                    <input
+                      value={newLinkUrl}
+                      onChange={(e) => setNewLinkUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="col-span-2 rounded-lg border border-slate-700 bg-[#090B10] px-2.5 py-1.5 text-[11px] text-white placeholder:text-slate-500 focus:border-sky-500 focus:outline-none"
+                    />
+                    <button
+                      onClick={handleAddLink}
+                      className="col-span-1 rounded-lg border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 flex items-center justify-center cursor-pointer"
+                      title="Attach link"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2 Explicit Save Options: Public vs Private */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleSaveWithVisibility('public')}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-2 text-xs font-semibold text-slate-950 hover:bg-emerald-400 transition cursor-pointer"
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    Save as Public
+                  </button>
+                  <button
+                    onClick={() => handleSaveWithVisibility('private')}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-500/50 bg-amber-500/15 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/25 transition cursor-pointer"
+                  >
+                    <Lock className="h-3.5 w-3.5" />
+                    Save as Private
+                  </button>
+                </div>
+
+                {currentVisibleNote && (
+                  <button
+                    onClick={handleRemoveNote}
+                    className="w-full text-[11px] text-slate-500 hover:text-rose-400 transition cursor-pointer"
+                  >
+                    Delete this note
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </aside>
       </div>

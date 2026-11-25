@@ -1,25 +1,66 @@
-import { GitHubSyncConfig, UserProgressData } from '../types';
+import {
+  AiEntry,
+  GitHubSyncConfig,
+  PublishedProgressFile,
+  TopicNote,
+  UserProgressData,
+} from '../types';
+import { decryptPrivateBundle, encryptPrivateBundle } from './auth';
 
-const PROGRESS_KEY = 'dsa_ai_learning_progress_v1';
-const GH_CONFIG_KEY = 'dsa_ai_github_sync_config_v1';
+const PROGRESS_KEY = 'dsa_ai_learning_progress_v2';
+const GH_CONFIG_KEY = 'dsa_ai_github_sync_config_v2';
 
 export const DEFAULT_PROGRESS: UserProgressData = {
-  version: 1,
+  version: 2,
   updatedAt: null,
   completedTopics: [],
   completedChecklist: [],
   practiceSolved: {},
   topicNotes: {},
   aiEntries: [],
+  encryptedPrivate: null,
 };
 
 export const DEFAULT_GH_CONFIG: GitHubSyncConfig = {
   owner: 'ragesh28',
   repo: 'My_Learning_Progress',
   branch: 'main',
-  filePath: 'data/user-notes.json',
+  filePath: 'public/data/user-notes.json',
   token: '',
 };
+
+function normalizeTopicNotes(raw: unknown): Record<string, TopicNote> {
+  if (!raw || typeof raw !== 'object') return {};
+  const result: Record<string, TopicNote> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, Partial<TopicNote>>)) {
+    if (!v) continue;
+    result[k] = {
+      topicId: v.topicId || k,
+      topicName: v.topicName || k,
+      content: v.content || '',
+      links: Array.isArray(v.links) ? v.links : [],
+      visibility: v.visibility === 'private' ? 'private' : 'public',
+      updatedAt: v.updatedAt || new Date().toISOString(),
+    };
+  }
+  return result;
+}
+
+function normalizeAiEntries(raw: unknown): AiEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item: Partial<AiEntry>) => ({
+    id: item.id || `ai-${Date.now()}`,
+    title: item.title || 'Untitled',
+    category: item.category || 'Note',
+    status: item.status || 'To Read',
+    visibility: item.visibility === 'private' ? 'private' : 'public',
+    url: item.url,
+    summary: item.summary || '',
+    tags: Array.isArray(item.tags) ? item.tags : [],
+    createdAt: item.createdAt || new Date().toISOString(),
+    updatedAt: item.updatedAt || new Date().toISOString(),
+  }));
+}
 
 export function loadLocalProgress(): UserProgressData {
   try {
@@ -27,13 +68,14 @@ export function loadLocalProgress(): UserProgressData {
     if (!raw) return { ...DEFAULT_PROGRESS };
     const parsed = JSON.parse(raw) as Partial<UserProgressData>;
     return {
-      version: 1,
+      version: 2,
       updatedAt: parsed.updatedAt ?? null,
       completedTopics: Array.isArray(parsed.completedTopics) ? parsed.completedTopics : [],
       completedChecklist: Array.isArray(parsed.completedChecklist) ? parsed.completedChecklist : [],
       practiceSolved: parsed.practiceSolved && typeof parsed.practiceSolved === 'object' ? parsed.practiceSolved : {},
-      topicNotes: parsed.topicNotes && typeof parsed.topicNotes === 'object' ? parsed.topicNotes : {},
-      aiEntries: Array.isArray(parsed.aiEntries) ? parsed.aiEntries : [],
+      topicNotes: normalizeTopicNotes(parsed.topicNotes),
+      aiEntries: normalizeAiEntries(parsed.aiEntries),
+      encryptedPrivate: parsed.encryptedPrivate ?? null,
     };
   } catch {
     return { ...DEFAULT_PROGRESS };
@@ -42,6 +84,70 @@ export function loadLocalProgress(): UserProgressData {
 
 export function saveLocalProgress(data: UserProgressData): void {
   localStorage.setItem(PROGRESS_KEY, JSON.stringify(data));
+}
+
+export async function fetchPublishedPublicData(): Promise<PublishedProgressFile | null> {
+  try {
+    const baseUrl = import.meta.env.BASE_URL || '/';
+    const res = await fetch(`${baseUrl}data/user-notes.json?t=${Date.now()}`);
+    if (!res.ok) return null;
+    return (await res.json()) as PublishedProgressFile;
+  } catch {
+    return null;
+  }
+}
+
+export function mergePublishedIntoProgress(
+  local: UserProgressData,
+  published: PublishedProgressFile
+): UserProgressData {
+  const localTime = local.updatedAt ? new Date(local.updatedAt).getTime() : 0;
+  const pubTime = published.updatedAt ? new Date(published.updatedAt).getTime() : 0;
+
+  if (localTime > pubTime) {
+    // Keep local edits if newer, but preserve encryptedPrivate if local lacks it
+    return {
+      ...local,
+      encryptedPrivate: local.encryptedPrivate || published.encryptedPrivate || null,
+    };
+  }
+
+  return {
+    version: 2,
+    updatedAt: published.updatedAt ?? null,
+    completedTopics: Array.isArray(published.completedTopics) ? published.completedTopics : [],
+    completedChecklist: Array.isArray(published.completedChecklist) ? published.completedChecklist : [],
+    practiceSolved: published.practiceSolved || {},
+    topicNotes: normalizeTopicNotes(published.publicTopicNotes),
+    aiEntries: normalizeAiEntries(published.publicAiEntries),
+    encryptedPrivate: published.encryptedPrivate ?? null,
+  };
+}
+
+export async function unlockPrivateNotesInProgress(
+  current: UserProgressData,
+  password: string
+): Promise<UserProgressData> {
+  if (!current.encryptedPrivate) return current;
+  try {
+    const bundle = await decryptPrivateBundle(current.encryptedPrivate, password);
+    const mergedNotes: Record<string, TopicNote> = {
+      ...current.topicNotes,
+      ...normalizeTopicNotes(bundle.topicNotes),
+    };
+    const existingIds = new Set(current.aiEntries.map((e) => e.id));
+    const mergedAi = [
+      ...current.aiEntries,
+      ...normalizeAiEntries(bundle.aiEntries).filter((e) => !existingIds.has(e.id)),
+    ];
+    return {
+      ...current,
+      topicNotes: mergedNotes,
+      aiEntries: mergedAi,
+    };
+  } catch {
+    return current;
+  }
 }
 
 export function loadGitHubConfig(): GitHubSyncConfig {
@@ -84,9 +190,47 @@ function fromBase64Utf8(base64: string): string {
   return new TextDecoder().decode(bytes);
 }
 
+export async function buildPublishedFile(
+  data: UserProgressData,
+  ownerPassword: string | null
+): Promise<PublishedProgressFile> {
+  const publicTopicNotes: Record<string, TopicNote> = {};
+  const privateTopicNotes: Record<string, TopicNote> = {};
+
+  for (const [k, note] of Object.entries(data.topicNotes)) {
+    if (note.visibility === 'private') privateTopicNotes[k] = note;
+    else publicTopicNotes[k] = note;
+  }
+
+  const publicAiEntries = data.aiEntries.filter((e) => e.visibility !== 'private');
+  const privateAiEntries = data.aiEntries.filter((e) => e.visibility === 'private');
+
+  let encryptedPrivate = data.encryptedPrivate ?? null;
+  if (ownerPassword && (Object.keys(privateTopicNotes).length > 0 || privateAiEntries.length > 0)) {
+    encryptedPrivate = await encryptPrivateBundle(
+      { topicNotes: privateTopicNotes, aiEntries: privateAiEntries },
+      ownerPassword
+    );
+  } else if (ownerPassword && Object.keys(privateTopicNotes).length === 0 && privateAiEntries.length === 0) {
+    encryptedPrivate = null;
+  }
+
+  return {
+    version: 2,
+    updatedAt: new Date().toISOString(),
+    completedTopics: data.completedTopics,
+    completedChecklist: data.completedChecklist,
+    practiceSolved: data.practiceSolved,
+    publicTopicNotes,
+    publicAiEntries,
+    encryptedPrivate,
+  };
+}
+
 export async function pushProgressToGitHub(
   config: GitHubSyncConfig,
-  data: UserProgressData
+  data: UserProgressData,
+  ownerPassword: string | null
 ): Promise<{ commitUrl?: string; message: string }> {
   if (!config.token.trim()) {
     throw new Error('Add your GitHub Personal Access Token first.');
@@ -109,14 +253,11 @@ export async function pushProgressToGitHub(
     throw new Error(`GitHub read failed (${checkRes.status}): ${errText.slice(0, 140)}`);
   }
 
-  const payload: UserProgressData = {
-    ...data,
-    updatedAt: new Date().toISOString(),
-  };
+  const publishedFile = await buildPublishedFile(data, ownerPassword);
 
   const body: Record<string, unknown> = {
-    message: `chore: update DSA & AI learning progress (${new Date().toLocaleDateString()})`,
-    content: toBase64Utf8(JSON.stringify(payload, null, 2)),
+    message: `chore: update public & encrypted private notes (${new Date().toLocaleDateString()})`,
+    content: toBase64Utf8(JSON.stringify(publishedFile, null, 2)),
     branch: config.branch,
   };
   if (existingSha) {
@@ -137,11 +278,14 @@ export async function pushProgressToGitHub(
   const result = (await putRes.json()) as { commit?: { html_url?: string } };
   return {
     commitUrl: result.commit?.html_url,
-    message: 'Saved directly to GitHub!',
+    message: 'Saved! Public notes are visible to everyone; private notes are encrypted.',
   };
 }
 
-export async function pullProgressFromGitHub(config: GitHubSyncConfig): Promise<UserProgressData> {
+export async function pullProgressFromGitHub(
+  config: GitHubSyncConfig,
+  ownerPassword: string | null
+): Promise<UserProgressData> {
   if (!config.token.trim()) {
     throw new Error('Add your GitHub Personal Access Token first.');
   }
@@ -164,14 +308,21 @@ export async function pullProgressFromGitHub(config: GitHubSyncConfig): Promise<
     throw new Error('No file content returned from GitHub.');
   }
   const decoded = fromBase64Utf8(json.content);
-  const parsed = JSON.parse(decoded) as Partial<UserProgressData>;
-  return {
-    ...DEFAULT_PROGRESS,
-    ...parsed,
+  const parsed = JSON.parse(decoded) as PublishedProgressFile;
+
+  let progress: UserProgressData = {
+    version: 2,
+    updatedAt: parsed.updatedAt ?? null,
     completedTopics: Array.isArray(parsed.completedTopics) ? parsed.completedTopics : [],
     completedChecklist: Array.isArray(parsed.completedChecklist) ? parsed.completedChecklist : [],
     practiceSolved: parsed.practiceSolved || {},
-    topicNotes: parsed.topicNotes || {},
-    aiEntries: Array.isArray(parsed.aiEntries) ? parsed.aiEntries : [],
+    topicNotes: normalizeTopicNotes(parsed.publicTopicNotes),
+    aiEntries: normalizeAiEntries(parsed.publicAiEntries),
+    encryptedPrivate: parsed.encryptedPrivate ?? null,
   };
+
+  if (ownerPassword && progress.encryptedPrivate) {
+    progress = await unlockPrivateNotesInProgress(progress, ownerPassword);
+  }
+  return progress;
 }
